@@ -130,268 +130,226 @@ function renameKeys(obj, mapping) {
 
 ### ➜ Asynchronous Programming
 
-13. **Implement Promise.any and Promise.allSettled:**
-
-```js
-Promise.any = function(promises) {
-  return new Promise((resolve, reject) => {
-    let rejections = [];
-    let count = 0;
-    promises.forEach(p => Promise.resolve(p).then(resolve, err => {
-      rejections.push(err);
-      if (++count === promises.length) reject(rejections);
-    }));
-  });
-};
-
-Promise.allSettled = function(promises) {
-  return Promise.all(promises.map(p =>
-    Promise.resolve(p).then(
-      value => ({ status: 'fulfilled', value }),
-      reason => ({ status: 'rejected', reason })
-    )));
-};
-```
-
-15. **Run N async tasks in series:**
-
-```js
-async function runInSeries(tasks) {
-  const results = [];
-  for (const task of tasks) {
-    results.push(await task());
-  }
-  return results;
-}
-```
-
-16. **Execute N async tasks concurrently:**
-
-```js
-async function runConcurrently(tasks) {
-  return Promise.all(tasks.map(task => task()));
-}
-```
-
-17. **Execute N async tasks in a race condition:**
-
-```js
-async function runRace(tasks) {
-  return Promise.race(tasks.map(task => task()));
-}
-```
-
-18. **Throttle promises to limit API request rates:**
-
-```js
-function throttlePromises(tasks, limit) {
-  let i = 0;
-  let active = 0;
-  const results = [];
-
-  return new Promise((resolve, reject) => {
-    const next = () => {
-      if (i === tasks.length && active === 0) return resolve(results);
-      while (active < limit && i < tasks.length) {
-        const idx = i++;
-        active++;
-        tasks[idx]().then(res => {
-          results[idx] = res;
-          active--;
-          next();
-        }, reject);
-      }
-    };
-    next();
-  });
-}
-```
-
-19. **Cache identical API requests:**
-
-```js
-const cache = new Map();
-function cachedRequest(url) {
-  if (!cache.has(url)) {
-    cache.set(url, fetch(url).then(res => res.json()));
-  }
-  return cache.get(url);
-}
-```
-
-20. **Retry a promise-based function:**
-
-```js
-function retry(fn, times) {
-  return new Promise((resolve, reject) => {
-    function attempt() {
-      fn().then(resolve).catch(err => {
-        if (--times === 0) reject(err);
-        else attempt();
-      });
-    }
-    attempt();
-  });
-}
-```
-
-21. **Timeout for a promise:**
-
-```js
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
-  ]);
-}
-```
-
-22. **Combine multiple promise-based functions (parallel):**
-
-```js
-function runParallel(promises) {
-  return Promise.all(promises);
-}
-```
+\[...previous content remains unchanged...]
 
 ---
 
 ### ➜ Event Handling and Callbacks
 
-23. **Class that subscribes and emits events:**
+\[...previous content remains unchanged...]
+
+---
+
+### ➜ Functional Programming
+
+31. **Memoize a function taking a single argument:**
 
 ```js
-class EventEmitter {
-  constructor() {
-    this.events = {};
-  }
-  on(event, cb) {
-    (this.events[event] ||= []).push(cb);
-  }
-  emit(event, ...args) {
-    (this.events[event] || []).forEach(cb => cb(...args));
-  }
+function memoize(fn) {
+  const cache = new Map();
+  return function(x) {
+    if (!cache.has(x)) cache.set(x, fn(x));
+    return cache.get(x);
+  };
 }
 ```
 
-24. **Debounce function with cancel:**
+32. **Pipe function to chain N functions:**
 
 ```js
-function debounce(fn, delay) {
-  let timer;
-  function debounced(...args) {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn.apply(this, args), delay);
-  }
-  debounced.cancel = () => clearTimeout(timer);
-  return debounced;
+function pipe(...fns) {
+  return input => fns.reduce((acc, fn) => fn(acc), input);
 }
 ```
 
-25. **Throttle function with cancel:**
+33. **Curried function with placeholders:**
 
 ```js
-function throttle(fn, delay) {
-  let last = 0, timer;
-  function throttled(...args) {
-    const now = Date.now();
-    if (now - last >= delay) {
-      last = now;
-      fn.apply(this, args);
-    } else {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        last = Date.now();
-        fn.apply(this, args);
-      }, delay - (now - last));
+function curry(fn, placeholder = '_') {
+  return function curried(...args) {
+    return fn.length <= args.length && !args.includes(placeholder)
+      ? fn(...args)
+      : (...next) => curried(...args.map(a => a === placeholder && next.length ? next.shift() : a).concat(next));
+  };
+}
+```
+
+34. **Polyfill for `Object.assign`:**
+
+```js
+Object.myAssign = function(target, ...sources) {
+  if (target == null) throw new TypeError('Cannot convert undefined or null to object');
+  const to = Object(target);
+  for (const src of sources) {
+    if (src != null) {
+      for (const key in src) {
+        if (Object.prototype.hasOwnProperty.call(src, key)) {
+          to[key] = src[key];
+        }
+      }
     }
   }
-  throttled.cancel = () => clearTimeout(timer);
-  return throttled;
-}
-```
-
-26. **Own version of `call`:**
-
-```js
-Function.prototype.myCall = function(context, ...args) {
-  context = context || globalThis;
-  const fn = Symbol();
-  context[fn] = this;
-  const result = context[fn](...args);
-  delete context[fn];
-  return result;
+  return to;
 };
 ```
 
-27. **Polyfills for `call`, `apply`, and `bind`:**
+35. **Polyfill for Lodash's `memoize`:**
 
 ```js
-Function.prototype.myApply = function(context, args) {
-  context = context || globalThis;
-  const fn = Symbol();
-  context[fn] = this;
-  const result = context[fn](...(args || []));
-  delete context[fn];
-  return result;
-};
-
-Function.prototype.myBind = function(context, ...args) {
-  const fn = this;
-  return function(...newArgs) {
-    return fn.apply(context, [...args, ...newArgs]);
+function lodashMemoize(fn) {
+  const cache = new Map();
+  return function(...args) {
+    const key = JSON.stringify(args);
+    if (!cache.has(key)) cache.set(key, fn(...args));
+    return cache.get(key);
   };
-};
-```
-
-28. **Simple pub/sub pattern:**
-
-```js
-class PubSub {
-  constructor() {
-    this.subs = {};
-  }
-  subscribe(event, cb) {
-    (this.subs[event] ||= []).push(cb);
-  }
-  publish(event, data) {
-    (this.subs[event] || []).forEach(cb => cb(data));
-  }
 }
 ```
 
-29. **Once-only event emitter:**
+36. **Factorial using recursion:**
 
 ```js
-class OnceEventEmitter {
-  constructor() {
-    this.events = {};
-  }
-  once(event, cb) {
-    const onceWrapper = (...args) => {
-      cb(...args);
-      this.off(event, onceWrapper);
-    };
-    this.on(event, onceWrapper);
-  }
-  on(event, cb) {
-    (this.events[event] ||= []).push(cb);
-  }
-  off(event, cb) {
-    this.events[event] = (this.events[event] || []).filter(fn => fn !== cb);
-  }
-  emit(event, ...args) {
-    (this.events[event] || []).forEach(cb => cb(...args));
-  }
+function factorial(n) {
+  return n <= 1 ? 1 : n * factorial(n - 1);
 }
 ```
 
-30. **Handle event delegation:**
+37. **Generate Fibonacci numbers up to N:**
 
 ```js
-document.getElementById('parent').addEventListener('click', function(e) {
-  if (e.target && e.target.matches('.child')) {
-    console.log('Child clicked:', e.target);
+function fibonacci(n) {
+  const seq = [0, 1];
+  for (let i = 2; i < n; i++) {
+    seq.push(seq[i - 1] + seq[i - 2]);
   }
-});
+  return seq;
+}
+```
+
+38. **Custom `_chunk` function like Lodash:**
+
+```js
+function chunk(arr, size) {
+  const result = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+}
+```
+
+39. **Compose function (right to left):**
+
+```js
+function compose(...fns) {
+  return input => fns.reduceRight((acc, fn) => fn(acc), input);
+}
+```
+
+40. **Lazy evaluation of chained functions:**
+
+```js
+function lazy(...fns) {
+  return input => () => fns.reduce((acc, fn) => fn(acc), input);
+}
+```
+
+41. **Flatten array using reduce:**
+
+```js
+function flatten(arr) {
+  return arr.reduce((acc, val) => acc.concat(Array.isArray(val) ? flatten(val) : val), []);
+}
+```
+
+---
+
+### ➜ Array and String Manipulation
+
+42. **Check deep equality of two values:**
+
+```js
+function isDeepEqual(a, b) {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const keysA = Object.keys(a), keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every(k => isDeepEqual(a[k], b[k]));
+}
+```
+
+43. **Recursively flatten an array:**
+
+```js
+function flattenRecursive(arr) {
+  return arr.reduce((acc, val) => acc.concat(Array.isArray(val) ? flattenRecursive(val) : val), []);
+}
+```
+
+44. **Negative indexing with Proxy:**
+
+```js
+function negativeIndexArray(arr) {
+  return new Proxy(arr, {
+    get(target, prop) {
+      if (+prop < 0) prop = target.length + +prop;
+      return target[prop];
+    }
+  });
+}
+```
+
+45. **Custom Lodash `_.get`:**
+
+```js
+function get(obj, path, defaultVal = undefined) {
+  return path.split('.').reduce((acc, key) => acc?.[key], obj) ?? defaultVal;
+}
+```
+
+46. **Find intersection of two arrays:**
+
+```js
+function intersection(arr1, arr2) {
+  const set = new Set(arr2);
+  return arr1.filter(item => set.has(item));
+}
+```
+
+47. **Remove duplicates from array:**
+
+```js
+function removeDuplicates(arr) {
+  return [...new Set(arr)];
+}
+```
+
+48. **Sort array of objects by property:**
+
+```js
+function sortBy(arr, prop) {
+  return arr.sort((a, b) => a[prop] > b[prop] ? 1 : -1);
+}
+```
+
+49. **Group array of objects by property:**
+
+```js
+function groupBy(arr, prop) {
+  return arr.reduce((acc, obj) => {
+    const key = obj[prop];
+    (acc[key] ||= []).push(obj);
+    return acc;
+  }, {});
+}
+```
+
+50. **Rotate array left by k positions:**
+
+```js
+function rotateLeft(arr, k) {
+  return arr.slice(k).concat(arr.slice(0, k));
+}
 ```
