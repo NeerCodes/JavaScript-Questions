@@ -126,19 +126,271 @@ function renameKeys(obj, mapping) {
 }
 ```
 
----
 
 ### ➜ Asynchronous Programming
 
-\[...previous content remains unchanged...]
+13. **Implement `Promise.any`:**
+
+```js
+Promise.any = function(promises) {
+  return new Promise((resolve, reject) => {
+    let rejections = [];
+    let count = 0;
+    promises.forEach((p, i) => {
+      Promise.resolve(p).then(resolve).catch(err => {
+        rejections[i] = err;
+        count++;
+        if (count === promises.length) {
+          reject(new AggregateError(rejections, 'All promises were rejected'));
+        }
+      });
+    });
+  });
+};
+```
+
+**`Promise.allSettled`:**
+
+```js
+Promise.allSettled = function(promises) {
+  return Promise.all(promises.map(p =>
+    Promise.resolve(p)
+      .then(value => ({ status: 'fulfilled', value }))
+      .catch(reason => ({ status: 'rejected', reason }))
+  ));
+};
+```
+
+15. **Run N async tasks in series:**
+
+```js
+async function runInSeries(tasks) {
+  const results = [];
+  for (const task of tasks) {
+    results.push(await task());
+  }
+  return results;
+}
+```
+
+16. **Execute N async tasks concurrently:**
+
+```js
+function runConcurrently(tasks) {
+  return Promise.all(tasks.map(task => task()));
+}
+```
+
+17. **Race N async tasks:**
+
+```js
+function raceTasks(tasks) {
+  return Promise.race(tasks.map(task => task()));
+}
+```
+
+18. **Throttle promises (limit API rate):**
+
+```js
+function throttle(tasks, limit) {
+  let i = 0;
+  const results = [];
+  return new Promise(resolve => {
+    const exec = () => {
+      if (i >= tasks.length) return resolve(Promise.all(results));
+      const p = tasks[i++]().finally(exec);
+      results.push(p);
+    };
+    for (let j = 0; j < limit; j++) exec();
+  });
+}
+```
+
+19. **Cache identical API requests:**
+
+```js
+const cache = new Map();
+function cachedFetch(url) {
+  if (cache.has(url)) return cache.get(url);
+  const promise = fetch(url).then(res => res.json());
+  cache.set(url, promise);
+  return promise;
+}
+```
+
+20. **Retry a promise function:**
+
+```js
+function retry(fn, retries) {
+  return fn().catch(err => {
+    if (retries <= 0) throw err;
+    return retry(fn, retries - 1);
+  });
+}
+```
+
+21. **Timeout a promise:**
+
+```js
+function timeout(promise, time) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), time))
+  ]);
+}
+```
+
+22. **Combine and run promises in parallel:**
+
+```js
+function runParallel(...fns) {
+  return Promise.all(fns.map(fn => fn()));
+}
+```
 
 ---
 
 ### ➜ Event Handling and Callbacks
 
-\[...previous content remains unchanged...]
+23. **Event Emitter class:**
 
----
+```js
+class EventEmitter {
+  constructor() {
+    this.events = {};
+  }
+  on(event, fn) {
+    (this.events[event] ||= []).push(fn);
+  }
+  emit(event, ...args) {
+    (this.events[event] || []).forEach(fn => fn(...args));
+  }
+}
+```
+
+24. **Debounce with cancel:**
+
+```js
+function debounce(fn, delay) {
+  let timer;
+  function debounced(...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  }
+  debounced.cancel = () => clearTimeout(timer);
+  return debounced;
+}
+```
+
+25. **Throttle with cancel:**
+
+```js
+function throttle(fn, delay) {
+  let last = 0;
+  let timer;
+  function throttled(...args) {
+    const now = Date.now();
+    if (now - last >= delay) {
+      last = now;
+      fn(...args);
+    } else {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        last = Date.now();
+        fn(...args);
+      }, delay - (now - last));
+    }
+  }
+  throttled.cancel = () => clearTimeout(timer);
+  return throttled;
+}
+```
+
+26. **Custom call method:**
+
+```js
+Function.prototype.myCall = function(context, ...args) {
+  context = context || globalThis;
+  const fn = Symbol('fn');
+  context[fn] = this;
+  const result = context[fn](...args);
+  delete context[fn];
+  return result;
+};
+```
+
+27. **Polyfills for `call`, `apply`, `bind`:**
+
+```js
+Function.prototype.myApply = function(context, args = []) {
+  context = context || globalThis;
+  const fn = Symbol();
+  context[fn] = this;
+  const result = context[fn](...args);
+  delete context[fn];
+  return result;
+};
+
+Function.prototype.myBind = function(context, ...args) {
+  const fn = this;
+  return function(...rest) {
+    return fn.apply(context, [...args, ...rest]);
+  };
+};
+```
+
+28. **Simple Pub/Sub pattern:**
+
+```js
+class PubSub {
+  constructor() {
+    this.subscribers = {};
+  }
+  subscribe(event, fn) {
+    (this.subscribers[event] ||= []).push(fn);
+  }
+  publish(event, data) {
+    (this.subscribers[event] || []).forEach(fn => fn(data));
+  }
+}
+```
+
+29. **Once-only custom event emitter:**
+
+```js
+class OnceEmitter {
+  constructor() {
+    this.events = {};
+  }
+  once(event, fn) {
+    const wrapper = (...args) => {
+      fn(...args);
+      this.off(event, wrapper);
+    };
+    this.on(event, wrapper);
+  }
+  on(event, fn) {
+    (this.events[event] ||= []).push(fn);
+  }
+  off(event, fn) {
+    this.events[event] = (this.events[event] || []).filter(f => f !== fn);
+  }
+  emit(event, ...args) {
+    (this.events[event] || []).forEach(fn => fn(...args));
+  }
+}
+```
+
+30. **Event delegation:**
+
+```js
+document.body.addEventListener('click', e => {
+  if (e.target.matches('.btn')) {
+    console.log('Button clicked:', e.target.textContent);
+  }
+});
+```
+
 
 ### ➜ Functional Programming
 
