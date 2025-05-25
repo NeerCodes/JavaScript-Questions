@@ -357,14 +357,14 @@ function rotateLeft(arr, k) {
 
 ### ➜ DOM Manipulation and Events
 
-52. **Add an event listener to multiple elements:**
+51. **Add an event listener to multiple elements:**
 
 ```js
 const buttons = document.querySelectorAll('button');
 buttons.forEach(btn => btn.addEventListener('click', () => alert('Clicked!')));
 ```
 
-53. **Remove all child nodes from a DOM element:**
+52. **Remove all child nodes from a DOM element:**
 
 ```js
 function removeAllChildren(parent) {
@@ -374,7 +374,7 @@ function removeAllChildren(parent) {
 }
 ```
 
-54. **Toggle a class on an element when clicked:**
+53. **Toggle a class on an element when clicked:**
 
 ```js
 document.getElementById('myElement').addEventListener('click', function() {
@@ -382,7 +382,7 @@ document.getElementById('myElement').addEventListener('click', function() {
 });
 ```
 
-55. **Clone a DOM element and its children:**
+54. **Clone a DOM element and its children:**
 
 ```js
 const original = document.getElementById('elementToClone');
